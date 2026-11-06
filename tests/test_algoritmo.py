@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 
 from main import (calcular_distancias, crossover_cycle, aplicar_mutacao,
                   criar_populacao, criar_nova_geracao, verificar_populacao,
-                  executar, carregar_cidades, desenhar_caminho)
+                  executar, carregar_cidades, desenhar_caminho, desenhar_custos)
 
 
 class TestAlgoritmo(unittest.TestCase):
@@ -43,7 +43,12 @@ class TestAlgoritmo(unittest.TestCase):
     def test_melhor_historico_coerente(self):
         random.seed(42)
         x, y = [0, 1, 1, 0], [0, 0, 1, 1]
-        inicial, final, solucao, custo = executar(x, y, 30)
+        historico = [999]
+        inicial, final, solucao, custo = executar(x, y, 30, historico=historico)
+        self.assertEqual(len(historico), 31)
+        self.assertEqual(historico[0], min(calcular_distancias(inicial, x, y)))
+        self.assertEqual(historico[-1], custo)
+        self.assertTrue(all(a >= b for a, b in zip(historico, historico[1:])))
         self.assertAlmostEqual(custo, calcular_distancias([solucao], x, y)[0])
         self.assertLessEqual(custo, min(calcular_distancias(inicial, x, y)))
         self.assertLessEqual(custo, min(calcular_distancias(final, x, y)))
@@ -63,6 +68,21 @@ class TestAlgoritmo(unittest.TestCase):
             self.assertEqual(len(pontos), 21)
             self.assertEqual(pontos[0], pontos[-1])
             self.assertEqual(len(raiz.findall('s:circle', ns)), 21)
+
+    def test_svg_custos_inclui_todas_as_geracoes(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            arquivo = Path(pasta) / 'custos.svg'
+            desenhar_custos([10, 8, 8, 5], arquivo, mostrar=False)
+            raiz = ET.parse(arquivo).getroot()
+            ns = {'s': 'http://www.w3.org/2000/svg'}
+            pontos = raiz.find('s:polyline', ns).attrib['points'].split()
+            self.assertEqual(len(pontos), 4)
+            self.assertEqual(float(pontos[0].split(',')[0]), 85)
+            self.assertEqual(float(pontos[-1].split(',')[0]), 710)
+            self.assertIn('5.000000', raiz.find('s:title', ns).text)
+            # Uma curva constante, inclusive em zero, também deve ser válida.
+            desenhar_custos([0, 0], arquivo, mostrar=False)
+            ET.parse(arquivo)
 
     def test_detecta_rota_invalida(self):
         with self.assertRaises(ValueError):

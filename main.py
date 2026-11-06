@@ -94,13 +94,17 @@ def verificar_populacao(populacao, tamanho_esperado, numero_cidades):
 
 
 # Etapa 6: repetir as gerações e guardar o melhor resultado de toda a busca.
-def executar(x, y, numero_geracoes=10000, tamanho_populacao=20):
+def executar(x, y, numero_geracoes=10000, tamanho_populacao=20, historico=None):
     populacao = criar_populacao(tamanho_populacao, len(x))
     verificar_populacao(populacao, tamanho_populacao, len(x))
     inicial = [rota.copy() for rota in populacao]
     custos = calcular_distancias(populacao, x, y)
     indice = min(range(len(custos)), key=lambda i: custos[i])
     melhor_solucao, melhor_custo = populacao[indice].copy(), custos[indice]
+    # A posição 0 representa a população inicial.
+    if historico is not None:
+        historico.clear()
+        historico.append(melhor_custo)
     for geracao in range(numero_geracoes):
         populacao = criar_nova_geracao(populacao, custos)
         verificar_populacao(populacao, tamanho_populacao, len(x))
@@ -109,6 +113,8 @@ def executar(x, y, numero_geracoes=10000, tamanho_populacao=20):
         if custos[indice] < melhor_custo:
             melhor_solucao = populacao[indice].copy()
             melhor_custo = custos[indice]
+        if historico is not None:
+            historico.append(melhor_custo)
         if (geracao + 1) % 1000 == 0:
             print(f'Geração {geracao + 1}: melhor custo = {melhor_custo:.6f}')
     return inicial, populacao, melhor_solucao, melhor_custo
@@ -180,6 +186,56 @@ def desenhar_caminho(x, y, solucao, custo, arquivo, mostrar=True):
         webbrowser.open(arquivo.resolve().as_uri())
 
 
+# Gráfico do melhor custo histórico: ele diminui ou permanece constante.
+def desenhar_custos(historico, arquivo, mostrar=True):
+    if not historico or any(not math.isfinite(c) or c < 0 for c in historico):
+        raise ValueError('O histórico deve conter custos finitos e não negativos.')
+    arquivo = Path(arquivo)
+    if arquivo.suffix.lower() != '.svg':
+        raise ValueError('O gráfico deve ser salvo com extensão .svg.')
+    raiz = ET.Element('svg', xmlns='http://www.w3.org/2000/svg',
+                      width='800', height='520', viewBox='0 0 800 520')
+
+    def elemento(tipo, **atributos):
+        return ET.SubElement(raiz, tipo, {k: str(v) for k, v in atributos.items()})
+
+    elemento('rect', width=800, height=520, fill='white')
+    titulo = f'Evolução do melhor custo — final: {historico[-1]:.6f}'
+    elemento('title').text = titulo
+    elemento('text', x=85, y=35, **{'font-size': 21}).text = titulo
+    # O eixo vertical começa em zero; o horizontal inclui a geração inicial.
+    limite = max(historico) * 1.05 or 1
+    geracoes = len(historico) - 1
+    for i in range(6):
+        px, py = 85 + 125 * i, 420 - 70 * i
+        elemento('line', x1=px, y1=70, x2=px, y2=420, stroke='#ddd')
+        elemento('line', x1=85, y1=py, x2=710, y2=py, stroke='#ddd')
+        elemento('text', x=px, y=445, **{'text-anchor': 'middle'}).text = (
+            f'{geracoes * i / 5:g}'
+        )
+        elemento('text', x=75, y=py + 5, **{'text-anchor': 'end'}).text = (
+            f'{limite * i / 5:.2f}'
+        )
+    elemento('text', x=360, y=480).text = 'Geração'
+    elemento('text', x=85, y=60).text = 'Melhor distância total encontrada'
+    pontos = []
+    for geracao, custo in enumerate(historico):
+        px = 85 + 625 * geracao / max(geracoes, 1)
+        py = 420 - 350 * custo / limite
+        pontos.append(f'{px:.3f},{py:.3f}')
+    elemento('polyline', points=' '.join(pontos), fill='none', stroke='blue',
+             **{'stroke-width': 2})
+    elemento('circle', cx=710 if geracoes else 85,
+             cy=420 - 350 * historico[-1] / limite, r=5, fill='green')
+    elemento('text', x=85, y=510).text = (
+        f'Inicial: {historico[0]:.6f} | Melhor custo final: {historico[-1]:.6f}'
+    )
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+    ET.ElementTree(raiz).write(arquivo, encoding='utf-8', xml_declaration=True)
+    if mostrar:
+        webbrowser.open(arquivo.resolve().as_uri())
+
+
 def main(argumentos=None):
     pasta = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__)
@@ -199,7 +255,8 @@ def main(argumentos=None):
         x, y = carregar_cidades(args.cidades)
     except (OSError, ValueError) as erro:
         parser.error(str(erro))
-    inicial, final, solucao, custo = executar(x, y, args.geracoes)
+    historico = []
+    inicial, final, solucao, custo = executar(x, y, args.geracoes, historico=historico)
     print('\nTamanho da população:', len(inicial))
     print('Número de cidades:', len(x))
     for titulo, populacao in [('População inicial', inicial), ('População final', final)]:
@@ -209,7 +266,13 @@ def main(argumentos=None):
     print(f'\nMelhor custo: {custo:.6f}')
     print('Melhor solução:', solucao)
     desenhar_caminho(x, y, solucao, custo, args.salvar, mostrar=not args.sem_janela)
-    print('Gráfico salvo em:', args.salvar)
+    print('Gráfico do caminho salvo em:', args.salvar)
+    arquivo_custos = args.salvar.with_name('melhor_custo.svg')
+    # Evita sobrescrever o caminho se --salvar usar o nome do gráfico de custos.
+    if arquivo_custos == args.salvar:
+        arquivo_custos = args.salvar.with_name('evolucao_custo.svg')
+    desenhar_custos(historico, arquivo_custos, mostrar=not args.sem_janela)
+    print('Gráfico do custo salvo em:', arquivo_custos)
 
 
 if __name__ == '__main__':

@@ -12,7 +12,12 @@ python main.py
 
 Não é necessário executar `pip install`. O arquivo `requirements.txt` contém apenas um comentário, para compatibilidade com instruções antigas.
 
-O programa imprime a população inicial e final, número de cidades, tamanho da população, melhor custo e melhor solução. Salva `resultados/melhor_caminho.svg` e tenta abri-lo no navegador. Se a abertura automática não funcionar, abra esse arquivo manualmente.
+O programa imprime a população inicial e final, número de cidades, tamanho da população, melhor custo e melhor solução. Salva dois gráficos e tenta abri-los no navegador:
+
+- `resultados/melhor_caminho.svg`: cidades e melhor percurso fechado.
+- `resultados/melhor_custo.svg`: evolução do melhor custo histórico, da geração 0 até a geração 10.000, com o valor final no título.
+
+Se a abertura automática não funcionar, abra esses arquivos manualmente. `--sem-janela` impede a abertura dos dois. Ao usar `--salvar`, o gráfico de custo é salvo na mesma pasta do caminho (com nome alternativo se necessário para evitar sobrescrita).
 
 Para executar sem abrir o navegador e repetir o experimento:
 
@@ -47,3 +52,7 @@ python -m unittest discover -s tests -v
 ```
 
 Veja `CONFERENCIA_PDF.md` para a correspondência entre o enunciado e a implementação.
+
+### Foi usado plot?
+
+Não foi usada uma função `plot` nem `plt.plot`. Ambos os gráficos são gerados diretamente em SVG com a biblioteca padrão, conforme o pedido de remover NumPy e Matplotlib. Isso atende à visualização dos dados, mas não ao uso literal da função Plot mencionado no PDF. Se o professor exigir essa função especificamente, confirme se aceita o SVG equivalente.

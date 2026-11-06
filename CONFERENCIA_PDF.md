@@ -26,9 +26,9 @@ A mutação afeta todos os membros, como solicitado. Por isso, guardamos uma có
 
 ## Validação realizada
 
-- Sete testes automatizados passaram: leitura das coordenadas e validação do SVG com caminho fechado, retorno à origem, exemplo de crossover do PDF, troca de duas posições, preservação das permutações, coerência do melhor histórico e rejeição de rota inválida.
+- Oito testes automatizados passaram: evolução do custo e gráfico SVG de custos, leitura das coordenadas e validação do SVG com caminho fechado, retorno à origem, exemplo de crossover do PDF, troca de duas posições, preservação das permutações, coerência do melhor histórico e rejeição de rota inválida.
 - Execução de 10.000 gerações com semente 42 concluída: melhor custo **4.147863**.
-- As quatro células de código do notebook foram executadas em ordem em um namespace novo, salvando resultados e gráfico no arquivo. Essa validação não utilizou um servidor Jupyter.
+- As cinco células de código do notebook foram executadas em ordem em um namespace novo, salvando resultados e gráfico no arquivo. Essa validação não utilizou um servidor Jupyter.
 - Todas as gerações tiveram as 20 rotas verificadas quanto a cidades ausentes ou repetidas.
 - O resultado é heurístico; não há comprovação de ótimo global.
 
@@ -37,3 +37,7 @@ A única informação de entrega que depende do aluno é o preenchimento dos nom
 ## Versão sem dependências externas
 
 NumPy e Matplotlib foram removidos a pedido do usuário. Listas e `random` implementam o algoritmo; o gráfico SVG é gerado com a biblioteca padrão e pode ser aberto no navegador. Testes, execução completa e células do notebook foram executados com `python -S`, que desativa o carregamento de pacotes de terceiros. A semente 42 agora usa o gerador da biblioteca padrão e produz resultados diferentes da versão anterior. A interface Jupyter é opcional, não é necessária para executar `main.py`.
+
+## Gráfico adicional do custo
+
+`melhor_custo.svg` mostra o melhor custo histórico na geração inicial e após cada geração, incluindo o valor final no título. O notebook também contém esse gráfico. Não foi usada a função Plot ou `plt.plot`: a visualização foi substituída por SVG a pedido do usuário. O uso literal dessa função, se exigido pelo professor, permanece uma diferença em relação ao texto do enunciado.
