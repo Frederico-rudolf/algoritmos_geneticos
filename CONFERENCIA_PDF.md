@@ -41,3 +41,7 @@ NumPy e Matplotlib foram removidos a pedido do usuário. Listas e `random` imple
 ## Gráfico adicional do custo
 
 `melhor_custo.svg` mostra o melhor custo histórico na geração inicial e após cada geração, incluindo o valor final no título. O notebook também contém esse gráfico. Não foi usada a função Plot ou `plt.plot`: a visualização foi substituída por SVG a pedido do usuário. O uso literal dessa função, se exigido pelo professor, permanece uma diferença em relação ao texto do enunciado.
+
+## Alternativa separada com NumPy e Plot
+
+A pasta `versao_numpy/` contém uma versão independente com NumPy e Matplotlib. Nela, tanto o percurso como a evolução do custo usam literalmente `plt.plot`, atendendo também a esse ponto do enunciado. A versão da raiz permanece sem dependências externas. Foram executados dez testes, sem falhas ou testes ignorados, incluindo os oito da versão original e dois da alternativa NumPy. A versão NumPy completou 10.000 gerações com semente 42 e melhor custo 4.278823, gerando os dois gráficos SVG.

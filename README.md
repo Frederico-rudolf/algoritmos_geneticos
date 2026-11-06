@@ -56,3 +56,14 @@ Veja `CONFERENCIA_PDF.md` para a correspondência entre o enunciado e a implemen
 ### Foi usado plot?
 
 Não foi usada uma função `plot` nem `plt.plot`. Ambos os gráficos são gerados diretamente em SVG com a biblioteca padrão, conforme o pedido de remover NumPy e Matplotlib. Isso atende à visualização dos dados, mas não ao uso literal da função Plot mencionado no PDF. Se o professor exigir essa função especificamente, confirme se aceita o SVG equivalente.
+
+## Versão separada com NumPy e plot
+
+A pasta [`versao_numpy`](versao_numpy/README.md) contém uma implementação independente que utiliza NumPy e **`plt.plot` do Matplotlib** nos dois gráficos. Para executá-la a partir da raiz:
+
+```bash
+python -m pip install -r versao_numpy/requirements.txt
+python versao_numpy/main.py
+```
+
+O `main.py` da raiz continua funcionando sem pacotes externos. Os gráficos da versão NumPy ficam em `versao_numpy/resultados/`.
