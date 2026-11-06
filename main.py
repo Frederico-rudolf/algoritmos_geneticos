@@ -3,7 +3,10 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
+import math
+import random
+import webbrowser
+from xml.etree import ElementTree as ET
 
 
 # Etapa 1: calcular o custo, incluindo o retorno à primeira cidade.
@@ -25,36 +28,35 @@ def calcular_distancias(populacao, x, y):
 # Etapa 2: cada indivíduo é uma permutação das cidades.
 def criar_populacao(tamanho_populacao, numero_cidades):
     return [
-        np.random.permutation(np.arange(1, numero_cidades + 1))
+        random.sample(range(1, numero_cidades + 1), numero_cidades)
         for _ in range(tamanho_populacao)
     ]
 
 
 # Etapa 3: preservar a melhor metade e sortear pais por roleta.
 def selecionar_melhores(populacao, custos):
-    indices = np.argsort(custos)[:len(populacao) // 2]
+    indices = sorted(range(len(custos)), key=lambda i: custos[i])[:len(populacao) // 2]
     melhores = [populacao[i].copy() for i in indices]
     return melhores, [custos[i] for i in indices]
 
 
 def selecionar_pais(melhores):
     # Pesos inversos à posição: 10, 9, ..., 1 para dez sobreviventes.
-    pesos = np.arange(len(melhores), 0, -1)
-    probabilidades = pesos / pesos.sum()
-    indices = np.random.choice(len(melhores), size=2, p=probabilidades)
-    return melhores[indices[0]].copy(), melhores[indices[1]].copy()
+    pesos = list(range(len(melhores), 0, -1))
+    pai1, pai2 = random.choices(melhores, weights=pesos, k=2)
+    return pai1.copy(), pai2.copy()
 
 
 # Etapa 4: trocar um ciclo de posições mantém os filhos como permutações.
 def crossover_cycle(pai1, pai2):
     filho1, filho2 = pai1.copy(), pai2.copy()
-    inicio = np.random.randint(len(pai1))
+    inicio = random.randrange(len(pai1))
     posicao = inicio
     while True:
         filho1[posicao] = pai2[posicao]
         filho2[posicao] = pai1[posicao]
         cidade = pai2[posicao]
-        posicao = np.where(pai1 == cidade)[0][0]
+        posicao = pai1.index(cidade)
         if posicao == inicio:
             break
     return filho1, filho2
@@ -63,7 +65,7 @@ def crossover_cycle(pai1, pai2):
 # Etapa 5: trocar duas posições distintas sem repetir cidades.
 def aplicar_mutacao(rota):
     nova_rota = rota.copy()
-    a, b = np.random.choice(len(nova_rota), size=2, replace=False)
+    a, b = random.sample(range(len(nova_rota)), 2)
     nova_rota[a], nova_rota[b] = nova_rota[b], nova_rota[a]
     return nova_rota
 
@@ -97,13 +99,13 @@ def executar(x, y, numero_geracoes=10000, tamanho_populacao=20):
     verificar_populacao(populacao, tamanho_populacao, len(x))
     inicial = [rota.copy() for rota in populacao]
     custos = calcular_distancias(populacao, x, y)
-    indice = np.argmin(custos)
+    indice = min(range(len(custos)), key=lambda i: custos[i])
     melhor_solucao, melhor_custo = populacao[indice].copy(), custos[indice]
     for geracao in range(numero_geracoes):
         populacao = criar_nova_geracao(populacao, custos)
         verificar_populacao(populacao, tamanho_populacao, len(x))
         custos = calcular_distancias(populacao, x, y)
-        indice = np.argmin(custos)
+        indice = min(range(len(custos)), key=lambda i: custos[i])
         if custos[indice] < melhor_custo:
             melhor_solucao = populacao[indice].copy()
             melhor_custo = custos[indice]
@@ -112,33 +114,70 @@ def executar(x, y, numero_geracoes=10000, tamanho_populacao=20):
     return inicial, populacao, melhor_solucao, melhor_custo
 
 
-# Etapa 7: desenhar o caminho fechado com as cidades identificadas.
-def desenhar_caminho(x, y, solucao, custo, arquivo, mostrar=True):
-    import matplotlib.pyplot as plt
+# Leitura do arquivo de texto do Octave, ignorando comentários e linhas vazias.
+def carregar_cidades(arquivo):
+    linhas = []
+    for linha in Path(arquivo).read_text(encoding='utf-8').splitlines():
+        numeros = linha.split('#', 1)[0].strip()
+        if numeros:
+            linhas.append([float(valor) for valor in numeros.split()])
+    if len(linhas) != 2 or any(len(linha) != 20 for linha in linhas):
+        raise ValueError('O arquivo deve conter duas linhas com 20 coordenadas.')
+    if any(not math.isfinite(valor) or not 0 <= valor <= 1
+           for linha in linhas for valor in linha):
+        raise ValueError('As coordenadas devem ser finitas e estar entre 0 e 1.')
+    return linhas[0], linhas[1]
 
-    indices = solucao - 1
-    indices = np.append(indices, indices[0])
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.plot(x[indices], y[indices], color='blue', linewidth=1, label='Melhor caminho')
-    ax.scatter(x, y, color='red', s=50, label='Cidades')
-    for i in range(len(x)):
-        ax.annotate(str(i + 1), (x[i], y[i]), xytext=(5, 5), textcoords='offset points')
-    inicio = solucao[0] - 1
-    ax.scatter(x[inicio], y[inicio], color='green', s=120, marker='*',
-               label='Início e fim', zorder=3)
-    ax.set_title(f'Melhor caminho encontrado — custo: {custo:.6f}')
-    ax.set_xlabel('Coordenada x')
-    ax.set_ylabel('Coordenada y')
-    ax.axis('equal')
-    ax.grid(True)
-    ax.legend()
-    fig.tight_layout()
+
+# Etapa 7: gerar um gráfico SVG usando somente a biblioteca padrão.
+def desenhar_caminho(x, y, solucao, custo, arquivo, mostrar=True):
     arquivo = Path(arquivo)
+    if arquivo.suffix.lower() != '.svg':
+        raise ValueError('O gráfico deve ser salvo com extensão .svg.')
+    # Mesma escala nos dois eixos; y é invertido na tela.
+    def ponto(cidade):
+        indice = cidade - 1
+        return 70 + 600 * x[indice], 670 - 600 * y[indice]
+
+    raiz = ET.Element('svg', xmlns='http://www.w3.org/2000/svg',
+                      width='760', height='760', viewBox='0 0 760 760')
+
+    def elemento(tipo, **atributos):
+        return ET.SubElement(raiz, tipo, {k: str(v) for k, v in atributos.items()})
+
+    elemento('rect', width=760, height=760, fill='white')
+    elemento('title').text = f'Melhor caminho encontrado — custo: {custo:.6f}'
+    elemento('text', x=70, y=30, **{'font-size': 20}).text = (
+        f'Melhor caminho encontrado — custo: {custo:.6f}'
+    )
+    for i in range(11):
+        posicao = 70 + 60 * i
+        elemento('line', x1=posicao, y1=70, x2=posicao, y2=670, stroke='#ddd')
+        elemento('line', x1=70, y1=posicao, x2=670, y2=posicao, stroke='#ddd')
+        elemento('text', x=posicao - 10, y=690).text = f'{i / 10:.1f}'
+        elemento('text', x=35, y=posicao + 5).text = f'{1 - i / 10:.1f}'
+    elemento('text', x=320, y=720).text = 'Coordenada x'
+    elemento('text', x=10, y=55).text = 'y'
+    # Repete a primeira cidade para fechar o percurso.
+    rota_fechada = solucao + [solucao[0]]
+    pontos = ' '.join(f'{px},{py}' for px, py in map(ponto, rota_fechada))
+    elemento('polyline', points=pontos, fill='none', stroke='blue',
+             **{'stroke-width': 2})
+    for cidade in range(1, len(x) + 1):
+        px, py = ponto(cidade)
+        elemento('circle', cx=px, cy=py, r=5, fill='red')
+        elemento('text', x=px + 7, y=py - 7).text = str(cidade)
+    px, py = ponto(solucao[0])
+    elemento('circle', cx=px, cy=py, r=8, fill='none', stroke='green',
+             **{'stroke-width': 3})
+    elemento('text', x=70, y=745).text = (
+        'Azul: percurso | Vermelho: cidades | Verde: início e fim'
+    )
     arquivo.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(arquivo, dpi=150)
+    ET.ElementTree(raiz).write(arquivo, encoding='utf-8', xml_declaration=True)
     if mostrar:
-        plt.show()
-    plt.close(fig)
+        # Se o navegador não abrir, o SVG continua disponível na pasta resultados.
+        webbrowser.open(arquivo.resolve().as_uri())
 
 
 def main(argumentos=None):
@@ -148,26 +187,27 @@ def main(argumentos=None):
     parser.add_argument('--geracoes', type=int, default=10000)
     parser.add_argument('--seed', type=int, help='Semente opcional para repetir o experimento.')
     parser.add_argument('--sem-janela', action='store_true', help='Salva o gráfico sem abrir janela.')
-    parser.add_argument('--salvar', type=Path, default=pasta / 'resultados' / 'melhor_caminho.png')
+    parser.add_argument('--salvar', type=Path, default=pasta / 'resultados' / 'melhor_caminho.svg')
     args = parser.parse_args(argumentos)
     if args.geracoes < 1:
         parser.error('--geracoes deve ser positivo.')
     if args.seed is not None:
-        np.random.seed(args.seed)
-    # O arquivo fornecido é texto do Octave; comentários começam com #.
-    coordenadas = np.loadtxt(args.cidades)
-    if coordenadas.shape != (2, 20) or not np.isfinite(coordenadas).all():
-        parser.error('O arquivo deve conter duas linhas com 20 coordenadas finitas.')
-    x, y = coordenadas
+        random.seed(args.seed)
+    if args.salvar.suffix.lower() != '.svg':
+        parser.error('--salvar deve usar a extensão .svg.')
+    try:
+        x, y = carregar_cidades(args.cidades)
+    except (OSError, ValueError) as erro:
+        parser.error(str(erro))
     inicial, final, solucao, custo = executar(x, y, args.geracoes)
     print('\nTamanho da população:', len(inicial))
     print('Número de cidades:', len(x))
     for titulo, populacao in [('População inicial', inicial), ('População final', final)]:
         print(f'\n{titulo}:')
         for i, rota in enumerate(populacao, start=1):
-            print(f'Indivíduo {i}: {rota.tolist()}')
+            print(f'Indivíduo {i}: {rota}')
     print(f'\nMelhor custo: {custo:.6f}')
-    print('Melhor solução:', solucao.tolist())
+    print('Melhor solução:', solucao)
     desenhar_caminho(x, y, solucao, custo, args.salvar, mostrar=not args.sem_janela)
     print('Gráfico salvo em:', args.salvar)
 

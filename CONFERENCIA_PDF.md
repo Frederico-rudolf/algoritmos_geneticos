@@ -14,7 +14,7 @@
 | Recombinação cycle iniciada em posição aleatória | `crossover_cycle`, validado com a figura do PDF |
 | Mutação por troca de dois números em cada membro da nova geração | `aplicar_mutacao`, incluindo os sobreviventes |
 | Mostrar tamanho da população, população inicial e final, número de cidades, melhor custo e solução | Saída do programa e célula de resultados do notebook |
-| Plotar cidades e melhor caminho | `desenhar_caminho`, com retorno desenhado e cidades numeradas |
+| Plotar cidades e melhor caminho | `desenhar_caminho`, com retorno desenhado e cidades numeradas em SVG; substitui a biblioteca de plotagem conforme solicitado pelo usuário |
 | Código com comentários simples | Funções organizadas e comentadas por etapas em `main.py` |
 | Entrega em ZIP ou notebook e identificação dos integrantes | `Trabalho_2.ipynb`; preencher os nomes antes de entregar |
 
@@ -26,10 +26,14 @@ A mutação afeta todos os membros, como solicitado. Por isso, guardamos uma có
 
 ## Validação realizada
 
-- Seis testes automatizados passaram: retorno à origem, exemplo de crossover do PDF, troca de duas posições, preservação das permutações, coerência do melhor histórico e rejeição de rota inválida.
-- Execução de 10.000 gerações com semente 42 concluída: melhor custo **4.278823**.
+- Sete testes automatizados passaram: leitura das coordenadas e validação do SVG com caminho fechado, retorno à origem, exemplo de crossover do PDF, troca de duas posições, preservação das permutações, coerência do melhor histórico e rejeição de rota inválida.
+- Execução de 10.000 gerações com semente 42 concluída: melhor custo **4.147863**.
 - As quatro células de código do notebook foram executadas em ordem em um namespace novo, salvando resultados e gráfico no arquivo. Essa validação não utilizou um servidor Jupyter.
 - Todas as gerações tiveram as 20 rotas verificadas quanto a cidades ausentes ou repetidas.
 - O resultado é heurístico; não há comprovação de ótimo global.
 
 A única informação de entrega que depende do aluno é o preenchimento dos nomes dos integrantes e, se necessário, a renomeação do arquivo conforme a turma.
+
+## Versão sem dependências externas
+
+NumPy e Matplotlib foram removidos a pedido do usuário. Listas e `random` implementam o algoritmo; o gráfico SVG é gerado com a biblioteca padrão e pode ser aberto no navegador. Testes, execução completa e células do notebook foram executados com `python -S`, que desativa o carregamento de pacotes de terceiros. A semente 42 agora usa o gerador da biblioteca padrão e produz resultados diferentes da versão anterior. A interface Jupyter é opcional, não é necessária para executar `main.py`.

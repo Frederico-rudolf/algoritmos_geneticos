@@ -1,2 +1,1 @@
-numpy==2.3.5
-matplotlib==3.10.8
+# Nenhum pacote externo necessário. O programa usa apenas a biblioteca padrão.
